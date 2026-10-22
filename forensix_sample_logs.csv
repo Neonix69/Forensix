@@ -1,0 +1,9 @@
+timestamp,event_type,source_ip,user,action,details,host,event_id
+2026-10-22 09:12:03,authentication,185.220.101.7,admin,login_failed,Invalid password for admin,WS-07,EV-001
+2026-10-22 09:12:11,authentication,185.220.101.7,admin,login_failed,Invalid password for admin,WS-07,EV-002
+2026-10-22 09:12:19,authentication,185.220.101.7,admin,login_failed,Invalid password for admin,WS-07,EV-003
+2026-10-22 09:13:02,authentication,185.220.101.7,admin,login_success,Successful login for admin,WS-07,EV-004
+2026-10-22 09:14:45,file_access,185.220.101.7,admin,sensitive_file_access,Accessed payroll_export.csv,WS-07,EV-005
+2026-10-22 09:16:09,network,185.220.101.7,admin,outbound_transfer,Unusual outbound transfer: 840 MB,WS-07,EV-006
+2026-10-22 09:18:22,process,10.0.0.24,SYSTEM,powershell_encoded_command,Encoded PowerShell command observed,WS-07,EV-007
+2026-10-22 09:25:01,authentication,10.0.0.15,jdoe,login_success,Normal successful login,WS-03,EV-008
