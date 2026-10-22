@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FORENSIX / Incident reconstruction</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<style>
+:root{--ink:#f3f2ed;--muted:#969a9c;--bg:#101211;--panel:#171a18;--line:#303532;--acid:#d8ff62;--orange:#ff784f;--blue:#8cb8ff;--mono:'DM Mono',monospace;--sans:'DM Sans',sans-serif;--display:'Manrope',sans-serif}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px}
+body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.16;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.12'/%3E%3C/svg%3E")}
+.shell{max-width:1500px;margin:auto;padding:0 34px 50px}.topbar{height:76px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:20px}
+.brand{display:flex;align-items:center;gap:12px;font-family:var(--display);letter-spacing:-.6px;font-size:18px}.sigil{width:31px;height:31px;border:1px solid var(--acid);color:var(--acid);display:grid;place-items:center;font-family:var(--mono);font-size:15px;transform:rotate(-45deg)}.sigil span{transform:rotate(45deg)}
+.brand small{font:10px var(--mono);color:var(--muted);letter-spacing:1.2px;margin-left:8px}
+.topright{display:flex;align-items:center;gap:16px;color:var(--muted);font:11px var(--mono)}.live{color:var(--acid);display:flex;gap:8px;align-items:center}.live:before{content:"";width:6px;height:6px;border-radius:50%;background:var(--acid);box-shadow:0 0 10px #d8ff6277}
+.intro{padding:38px 0 26px;display:grid;grid-template-columns:1.3fr .7fr;gap:40px;align-items:end}.eyebrow{font:11px var(--mono);color:var(--acid);letter-spacing:1.6px;text-transform:uppercase;margin-bottom:15px}.intro h1{font:500 clamp(34px,4vw,58px)/1.04 var(--display);letter-spacing:-2.8px;margin:0;max-width:760px}.intro h1 em{font-style:normal;color:var(--acid)}.intro p{color:#aeb2ae;line-height:1.7;max-width:430px;margin:0 0 3px}
+.controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:17px 0;margin-bottom:25px}
+.btn{border:1px solid var(--line);padding:11px 15px;color:var(--ink);background:#1a1d1b;font:12px var(--mono);cursor:pointer;transition:.2s}.btn:hover{border-color:var(--acid);color:var(--acid)}.btn.primary{background:var(--acid);color:#12150c;border-color:var(--acid)}.btn.primary:hover{background:#e6ff9a}.file-label{font:11px var(--mono);color:var(--muted);margin-left:auto;max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.file-input{display:none}
+.dropnote{color:var(--muted);font-size:11px;margin-left:3px}
+.btn[hidden],.panel[hidden],.progress[hidden]{display:none!important}.btn:disabled{opacity:.45;cursor:not-allowed}.btn.danger:hover{border-color:var(--orange);color:var(--orange)}
+.userbox{display:flex;align-items:center;gap:12px}.userbox a{color:var(--ink);text-decoration:none}.userbox a:hover{color:var(--acid)}.userbox form{margin:0}.userbox .btn{padding:7px 11px;font-size:11px}
+.progress{border:1px solid var(--line);background:var(--panel);padding:14px 18px;margin:0 0 18px}.progress-top{display:flex;justify-content:space-between;font:11px var(--mono);color:#c5c8c3;margin-bottom:10px}
+.bar{height:6px;background:#242925;overflow:hidden;position:relative}.bar>i{display:block;height:100%;width:0;background:var(--acid);transition:width .15s}.bar.indeterminate>i{width:35%!important;position:absolute;animation:slide 1s infinite ease-in-out}
+@keyframes slide{0%{left:-35%}100%{left:100%}}
+.files{padding:4px 18px 8px}.file-row{display:grid;grid-template-columns:minmax(0,1.6fr) 90px 90px minmax(0,1.3fr) auto;gap:14px;align-items:center;padding:12px 0;border-bottom:1px solid #292d2a;font-size:12px}.file-row:last-child{border-bottom:0}
+.file-name{display:flex;align-items:center;gap:9px;min-width:0}.file-name b{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.file-name:before{content:"✓";color:var(--acid);font:11px var(--mono)}
+.file-meta{font:10px var(--mono);color:var(--muted)}.file-warn{color:#e7cd68}.file-x{background:none;border:1px solid var(--line);color:var(--muted);font:11px var(--mono);padding:5px 9px;cursor:pointer}.file-x:hover{border-color:var(--orange);color:var(--orange)}
+.tactic{font:9px var(--mono);letter-spacing:.6px;color:var(--orange);border:1px solid #724234;padding:2px 5px;margin-left:8px;white-space:nowrap}.tactic.medium{color:#e7cd68;border-color:#766b35}
+.badge.high{color:var(--orange)}
+.story-list{padding:4px 18px 10px}.story-row{display:grid;grid-template-columns:34px 78px 1fr;gap:14px;padding:14px 0;border-bottom:1px solid #292d2a;cursor:pointer;align-items:start}.story-row:last-child{border-bottom:0}.story-row:hover .story-x{color:#fff}
+.story-n{font:10px var(--mono);color:var(--acid);padding-top:2px}.story-t{font:11px var(--mono);color:#c5c8c3}.story-t span{color:var(--muted);font-size:9px}.story-row .tactic{margin:0 0 7px;display:inline-block}.story-x{font-size:12px;line-height:1.65;color:#c2c7bf;margin-bottom:8px}
+.popups{position:fixed;right:20px;bottom:20px;z-index:40;display:flex;flex-direction:column;gap:10px;max-width:min(420px,calc(100vw - 40px))}
+.popup{padding:13px 16px;border:1px solid #555f44;background:#20251b;color:#d8ffb2;font-size:12px;line-height:1.5;box-shadow:0 8px 30px #0008;animation:pin .25s ease-out;transition:opacity .4s,transform .4s}.popup.error{border-color:#744739;background:#261c19;color:#ffb49c}.popup.out{opacity:0;transform:translateY(8px)}
+@keyframes pin{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@media(max-width:900px){.file-row{grid-template-columns:1fr auto}.file-row .file-meta{grid-column:1/-1}}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);margin-bottom:25px}.metric{padding:19px 22px;border-right:1px solid var(--line);min-height:100px}.metric:last-child{border:0}.metric .label{color:var(--muted);font:10px var(--mono);letter-spacing:1.1px;text-transform:uppercase}.metric .value{font:500 32px var(--display);letter-spacing:-1px;margin:10px 0 4px}.metric .sub{font-size:11px;color:var(--muted)}.metric.alert .value{color:var(--orange)}.metric.signal .value{color:var(--acid)}
+.sectionhead{display:flex;justify-content:space-between;align-items:center;margin:36px 0 14px;gap:12px}.sectionhead h2{font:500 20px var(--display);letter-spacing:-.6px;margin:0}.sectionhead .micro{font:10px var(--mono);color:var(--muted);letter-spacing:1px}
+.content-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(300px,.8fr);gap:18px}.panel{border:1px solid var(--line);background:var(--panel);min-width:0}.panelhead{padding:15px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:10px}.panelhead span:first-child{font:11px var(--mono);color:#c5c8c3}.panelhead small{font:10px var(--mono);color:var(--muted)}
+#timeline{height:290px;width:100%}
+.timeline-legend{display:flex;align-items:center;gap:15px;flex-wrap:wrap;padding:11px 18px 15px;border-top:1px solid #292d2a;border-bottom:1px solid var(--line);background:#141715}
+.legend-title{font:9px var(--mono);letter-spacing:1px;color:#8f968d;margin-right:2px}
+.legend-item{display:inline-flex;align-items:center;gap:7px;color:#c2c7bf;font-size:10px}
+.legend-dot{display:inline-block;width:8px;height:8px;border-radius:50%;flex:0 0 auto}
+.legend-dot.suspicious{background:var(--orange);box-shadow:0 0 8px #ff784f44}
+.legend-dot.success{background:var(--acid);box-shadow:0 0 8px #d8ff6244}
+.legend-dot.other{background:var(--blue)}
+.legend-note{margin-left:auto;color:#7f877d;font:9px var(--mono)}
+.event-list{padding:4px 18px 10px}.event{display:grid;grid-template-columns:92px 14px 1fr auto;gap:12px;padding:14px 0;border-bottom:1px solid #292d2a;align-items:start;cursor:pointer}.event:last-child{border-bottom:0}.event:hover .event-title{color:var(--acid)}.event-time{font:10px var(--mono);color:var(--muted);padding-top:2px}.event-dot{width:8px;height:8px;border:1px solid var(--acid);margin-top:4px;position:relative}.event:not(:last-child) .event-dot:after{content:"";position:absolute;width:1px;height:48px;top:8px;left:3px;background:#3e4730}.event-title{font-size:12px;color:#e5e6e1;margin-bottom:4px}.event-desc{font-size:11px;line-height:1.55;color:var(--muted)}.event-id{font:9px var(--mono);color:#727974}
+.findings{padding:7px 17px}.finding{padding:17px 0;border-bottom:1px solid #292d2a;cursor:pointer}.finding:last-child{border-bottom:0}.finding-top{display:flex;align-items:center;gap:9px;margin-bottom:9px}.badge{font:9px var(--mono);letter-spacing:.7px;padding:4px 6px;border:1px solid #724234;color:var(--orange)}.badge.medium{border-color:#766b35;color:#e7cd68}.finding-title{font-size:12px;line-height:1.45}.finding p{color:var(--muted);font-size:11px;line-height:1.65;margin:0 0 10px}.evidence-ids{display:flex;gap:5px;flex-wrap:wrap}.evidence-ids span{font:9px var(--mono);border:1px solid #353b36;padding:4px 6px;color:#b5bbb3}.finding.empty{color:var(--muted);line-height:1.6}
+.story{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border:1px solid var(--line);margin-top:18px}.story-step{padding:19px;border-right:1px solid var(--line);position:relative;min-height:130px}.story-step:last-child{border:0}.story-step .num{font:10px var(--mono);color:var(--acid);margin-bottom:17px}.story-step .stitle{font:500 14px var(--display);margin-bottom:8px}.story-step .sdesc{font-size:11px;color:var(--muted);line-height:1.6}.story-step:not(:last-child):after{content:"↗";position:absolute;right:-8px;top:18px;z-index:2;color:var(--acid);background:var(--bg);padding:0 3px}
+.tablewrap{overflow:auto;max-height:340px}table{width:100%;border-collapse:collapse;font-size:11px;white-space:nowrap}th{text-align:left;font:10px var(--mono);color:var(--muted);padding:12px 15px;border-bottom:1px solid var(--line);position:sticky;top:0;background:#171a18}td{padding:11px 15px;border-bottom:1px solid #292d2a;color:#d0d3cd}tr:hover td{background:#202520}.mono{font-family:var(--mono);font-size:10px;color:#a5aaa3}.status{display:inline-flex;align-items:center;gap:6px}.status:before{content:"";width:5px;height:5px;background:var(--acid);border-radius:50%}
+.bottomline{display:flex;justify-content:space-between;gap:20px;border-top:1px solid var(--line);padding-top:18px;margin-top:38px;color:#757b75;font:10px var(--mono);line-height:1.6}.toast{padding:12px 14px;border:1px solid #555f44;background:#20251b;color:#d8ffb2;margin:12px 0;display:none;font-size:12px}.toast.error{border-color:#744739;background:#261c19;color:#ffb49c}
+.overlay{position:fixed;inset:0;background:#0009;z-index:20;display:none;align-items:center;justify-content:center;padding:20px}.drawer{width:min(680px,100%);max-height:85vh;overflow:auto;background:#171a18;border:1px solid #4a5049;padding:25px}.drawer-head{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);padding-bottom:15px;margin-bottom:18px}.drawer h3{font:500 23px var(--display);margin:0}.drawer p{font-size:13px;color:#b2b8b0;line-height:1.75}.drawer .close{background:none;border:0;color:var(--ink);font-size:22px;cursor:pointer}
+@media(max-width:900px){.shell{padding:0 18px 35px}.intro{grid-template-columns:1fr;gap:20px}.content-grid{grid-template-columns:1fr}.metrics{grid-template-columns:repeat(2,1fr)}.metric:nth-child(2){border-right:0}.metric:nth-child(-n+2){border-bottom:1px solid var(--line)}.story{grid-template-columns:repeat(2,1fr)}.story-step:nth-child(2){border-right:0}.story-step:nth-child(-n+2){border-bottom:1px solid var(--line)}.story-step:after{display:none!important}.file-label{margin-left:0;width:100%}}
+@media(max-width:520px){.topright .statusword{display:none}.intro h1{letter-spacing:-1.8px}.metrics{grid-template-columns:1fr 1fr}.metric{padding:14px}.metric .value{font-size:26px}.event{grid-template-columns:72px 10px 1fr}.event-id{display:none}.story{grid-template-columns:1fr}.story-step{border-right:0!important;border-bottom:1px solid var(--line)}.story-step:last-child{border-bottom:0}.topbar{height:65px}.brand small{display:none}}
+</style>
+</head>
+<body>
+<div class="shell">
+<header class="topbar">
+  <div class="brand"><div class="sigil"><span>F</span></div><div>FORENSIX <small>/ FIELD NOTES 001</small></div></div>
+  <div class="topright"><span class="live statusword">ANALYSIS ENGINE READY</span>
+    <div class="userbox"><span>{{ user['username'] }}</span>{% if user['is_admin'] %}<a href="{{ url_for('admin') }}">ADMIN</a>{% endif %}
+      <form method="post" action="{{ url_for('logout') }}"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><button class="btn" type="submit">SIGN OUT</button></form></div></div>
+</header>
+<section class="intro">
+  <div><div class="eyebrow">Digital forensics / Incident reconstruction</div><h1>Every log leaves a trace.<br><em>Find the sequence.</em></h1></div>
+  <p>Turn disconnected records into a reviewable incident story. Follow the time, inspect the evidence, and see exactly why an event was flagged.</p>
+</section>
+<div class="controls">
+  <button type="button" id="load" class="btn primary">＋ &nbsp; LOAD LOGS</button>
+  <input id="file" class="file-input" type="file" multiple accept=".csv,.tsv,.txt,.log,.json,.jsonl,.ndjson,.xml" style="display:none">
+  <button type="button" id="replace" class="btn" hidden>⇄ &nbsp; CLEAR &amp; LOAD NEW</button>
+  <button type="button" id="clear" class="btn danger" hidden>✕ &nbsp; CLEAR ALL</button>
+  <button type="button" id="export" class="btn" disabled>↓ &nbsp; EXPORT BRIEF</button>
+  <span class="file-label" id="filename">No logs loaded</span>
+</div>
+<div id="dropzone" class="panel" style="border:1px dashed #59634b;padding:20px 18px;margin:-8px 0 22px;display:flex;align-items:center;justify-content:space-between;gap:18px;cursor:pointer">
+  <div><div style="font:11px var(--mono);color:var(--acid);letter-spacing:1px;margin-bottom:7px">EVIDENCE INTAKE</div><div style="font:500 15px var(--display);margin-bottom:5px" id="drop-title">Drop log files here</div><div style="font-size:11px;color:var(--muted)" id="drop-sub">Or click to browse. Files are analyzed automatically as soon as they load, and several files can be combined into one timeline.</div></div>
+  <div style="font:11px var(--mono);color:var(--muted);white-space:nowrap">CSV · JSON · XML · LOG · TXT · 25 MB EACH</div>
+</div>
+<div id="progress" class="progress" hidden>
+  <div class="progress-top"><span id="progress-label">Uploading…</span><span id="progress-pct">0%</span></div>
+  <div class="bar" id="bar"><i id="bar-fill"></i></div>
+</div>
+<section class="panel" id="files-panel" hidden style="margin-bottom:25px">
+  <div class="panelhead"><span>LOADED FILES</span><small id="files-count"></small></div>
+  <div class="files" id="files"></div>
+</section>
+<div id="toast" class="toast"></div>
+<div class="popups" id="popups" aria-live="polite"></div>
+<section class="metrics">
+  <div class="metric"><div class="label">Records reviewed</div><div class="value" id="m-total">—</div><div class="sub">Timestamped events</div></div>
+  <div class="metric alert"><div class="label">Indicators flagged</div><div class="value" id="m-findings">—</div><div class="sub">Require analyst review</div></div>
+  <div class="metric signal"><div class="label">Evidence linked</div><div class="value" id="m-linked">—</div><div class="sub">Event IDs supporting findings</div></div>
+  <div class="metric"><div class="label">Time window</div><div class="value" id="m-window" style="font-size:20px;margin-top:15px">—</div><div class="sub" id="m-dates">Load records to begin</div></div>
+</section>
+<div class="sectionhead"><h2>The sequence</h2><span class="micro" id="range-label">WAITING FOR EVIDENCE</span></div>
+<div class="content-grid">
+  <section class="panel">
+    <div class="panelhead"><span>01 / EVENT MAP</span><small>SELECT A POINT TO INSPECT</small></div>
+    <div id="timeline"></div>
+    <div class="timeline-legend" aria-label="Timeline legend">
+      <span class="legend-title">EVENT KEY</span>
+      <span class="legend-item"><i class="legend-dot suspicious"></i>Flagged indicator</span>
+      <span class="legend-item"><i class="legend-dot success"></i>Successful login</span>
+      <span class="legend-item"><i class="legend-dot other"></i>Other recorded event</span>
+      <span class="legend-note">Colors highlight patterns, not confirmed attacks.</span>
+    </div>
+    <div class="panelhead"><span>02 / CHRONOLOGICAL TRACE</span><small id="event-count">0 EVENTS</small></div>
+    <div id="event-list" class="event-list"><div class="finding empty">Load one or more log files to see events appear here.</div></div>
+  </section>
+  <section class="panel">
+    <div class="panelhead"><span>03 / INVESTIGATION LEADS</span><small>RULE-BASED SIGNALS</small></div>
+    <div id="findings" class="findings"><div class="finding empty">Potentially related events will be grouped here, with their evidence IDs attached.</div></div>
+  </section>
+</div>
+<section class="panel" id="story-panel" hidden style="margin-top:18px">
+  <div class="panelhead"><span>INCIDENT NARRATIVE / WHAT THE EVIDENCE SUGGESTS, IN ORDER</span><small id="story-count"></small></div>
+  <div class="story-list" id="story-list"></div>
+</section>
+<div class="sectionhead"><h2>From evidence to understanding</h2><span class="micro">THE INVESTIGATION PATH</span></div>
+<div class="story">
+  <div class="story-step"><div class="num">STEP / 01</div><div class="stitle">Collect</div><div class="sdesc">Bring in one or more log files of security events. The original records remain available for review.</div></div>
+  <div class="story-step"><div class="num">STEP / 02</div><div class="stitle">Arrange</div><div class="sdesc">Normalize timestamps and place events in chronological order.</div></div>
+  <div class="story-step"><div class="num">STEP / 03</div><div class="stitle">Connect</div><div class="sdesc">Flag suspicious patterns and link each lead to the records that triggered it.</div></div>
+  <div class="story-step"><div class="num">STEP / 04</div><div class="stitle">Verify</div><div class="sdesc">Inspect the evidence, decide what it supports, and export a concise investigation brief.</div></div>
+</div>
+<div class="sectionhead"><h2>Evidence ledger</h2><span class="micro">SOURCE RECORDS / NORMALIZED VIEW</span></div>
+<section class="panel">
+  <div class="panelhead"><span>04 / EVENT REGISTER</span><small id="ledger-count">NO RECORDS LOADED</small></div>
+  <div class="tablewrap"><table><thead><tr><th>TIME</th><th>EVENT ID</th><th>TYPE</th><th>ACCOUNT</th><th>SOURCE IP</th><th>ACTIVITY</th><th>HOST</th><th>FILE</th></tr></thead><tbody id="ledger"><tr><td colspan="8" style="color:#8c928b;padding:22px">Your evidence ledger will appear here.</td></tr></tbody></table></div>
+</section>
+<footer class="bottomline"><span>FORENSIX / PROTOTYPE BUILD 0.2<br>DESIGNED FOR TRACEABILITY, NOT AUTOMATIC VERDICTS.</span><span>RULE-BASED ANALYSIS · HUMAN VALIDATION REQUIRED</span></footer>
+</div>
+<div class="overlay" id="overlay"><div class="drawer"><div class="drawer-head"><h3 id="drawer-title">Event details</h3><button class="close" id="close">×</button></div><div id="drawer-body"></div></div></div>
+<script>
+let result=null, loadMode='add', busy=false;
+const CSRF="{{ csrf_token() }}";
+const $=id=>document.getElementById(id);
+const fmt=(v)=>{try{return new Date(v.replace(' ','T')).toLocaleString(undefined,{month:'short',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})}catch{return v}};
+function toast(msg,error=false){const t=$('toast');t.textContent=msg;t.className='toast'+(error?' error':'');t.style.display='block';}
+function hideToast(){$('toast').style.display='none';}
+function popup(msg,error=false,ms=4000){const p=document.createElement('div');p.className='popup'+(error?' error':'');p.textContent=msg;$('popups').appendChild(p);setTimeout(()=>{p.classList.add('out');setTimeout(()=>p.remove(),450)},error?Math.max(ms,6000):ms);}
+function kb(n){return n>=1048576?(n/1048576).toFixed(1)+' MB':Math.max(0.1,n/1024).toFixed(1)+' KB'}
+
+/* ---- progress bar ---- */
+function progress(label,pct){const p=$('progress');p.hidden=false;$('progress-label').textContent=label;const bar=$('bar');
+  if(pct===null){bar.classList.add('indeterminate');$('progress-pct').textContent='';}
+  else{bar.classList.remove('indeterminate');$('bar-fill').style.width=pct+'%';$('progress-pct').textContent=Math.round(pct)+'%';}}
+function progressDone(){setTimeout(()=>{$('progress').hidden=true;$('bar-fill').style.width='0';},600);}
+
+function setBusy(b){busy=b;['load','replace','clear'].forEach(id=>$(id).disabled=b);}
+function pick(mode){if(busy)return;loadMode=mode;$('file').value='';$('file').click();}
+
+/* ---- upload (XHR so we can show real upload progress) ---- */
+function upload(fileList,mode){
+  const files=[...fileList];if(!files.length||busy)return;
+  hideToast();setBusy(true);
+  const fd=new FormData();files.forEach(f=>fd.append('files',f,f.name));fd.append('mode',mode);
+  const names=files.length===1?files[0].name:files.length+' files';
+  progress('Uploading '+names+'…',0);
+  const xhr=new XMLHttpRequest();xhr.open('POST','/api/load');xhr.setRequestHeader('X-CSRF-Token',CSRF);
+  xhr.upload.onprogress=e=>{if(e.lengthComputable)progress('Uploading '+names+'…',e.loaded/e.total*100);};
+  xhr.upload.onload=()=>progress('Parsing and correlating events…',null);
+  xhr.onload=()=>{
+    let d={};try{d=JSON.parse(xhr.responseText)}catch{}
+    if(xhr.status===401){location.href='/login';return;}
+    if(xhr.status>=400||!d.loaded){
+      const msg=d.error||('Upload failed (HTTP '+xhr.status+').');toast(msg,true);popup('Could not load logs. '+msg,true);
+      if(d.files){applyState(d);}
+    }else{
+      progress('Done',100);applyState(d);
+      popup('✓ Logs loaded: '+d.loaded.join(', ')+' · '+d.total+' record'+(d.total===1?'':'s')+' total');
+      if(d.errors&&d.errors.length)toast('Some files were skipped: '+d.errors.map(e=>e.name+' ('+e.error+')').join('; '),true);
+    }
+    progressDone();setBusy(false);
+  };
+  xhr.onerror=()=>{toast('Network error while uploading. Is the server still running?',true);popup('Upload failed: network error',true);progressDone();setBusy(false);};
+  xhr.send(fd);
+}
+
+async function api(path){const r=await fetch(path,{method:'POST',headers:{'X-CSRF-Token':CSRF}});if(r.status===401){location.href='/login';throw new Error('signed out');}const d=await r.json();if(!r.ok)throw new Error(d.error||'Request failed');return d;}
+
+function applyState(d){
+  result=d.files&&d.files.length?d:null;
+  renderFiles(d.files||[]);
+  if(result)render(d);else renderEmpty();
+  const has=!!result;
+  $('load').innerHTML=has?'＋ &nbsp; LOAD ANOTHER':'＋ &nbsp; LOAD LOGS';
+  $('replace').hidden=!has;$('clear').hidden=!has;$('export').disabled=!has;
+  $('drop-title').textContent=has?'Drop more log files here to add them':'Drop log files here';
+  $('drop-sub').textContent=has?'New files are merged into the same timeline. Use “Clear & load new” to start over with different files.':'Or click to browse. Files are analyzed automatically as soon as they load, and several files can be combined into one timeline.';
+}
+function renderFiles(files){
+  $('files-panel').hidden=!files.length;$('files-count').textContent=files.length+' FILE'+(files.length===1?'':'S');
+  $('files').innerHTML=files.map(f=>`<div class="file-row"><div class="file-name"><b title="${esc(f.name)}">${esc(f.name)}</b></div><div class="file-meta">${esc(kb(f.size))}</div><div class="file-meta">${f.records} records</div><div class="file-meta">${esc(f.first)} → ${esc(f.last)}${f.skipped?`<br><span class="file-warn">${f.skipped} row${f.skipped===1?'':'s'} skipped (bad timestamp)</span>`:''}</div><button class="file-x" data-id="${f.id}" title="Remove this file">✕ REMOVE</button></div>`).join('');
+  document.querySelectorAll('.file-x').forEach(b=>b.addEventListener('click',async()=>{if(busy)return;setBusy(true);try{const d=await api('/api/files/'+b.dataset.id+'/remove');applyState(d);popup('File removed');}catch(e){popup(e.message,true)}setBusy(false);}));
+}
+function renderEmpty(){
+  $('story-panel').hidden=true;
+  ['m-total','m-findings','m-linked','m-window'].forEach(i=>$(i).textContent='—');$('m-dates').textContent='Load records to begin';$('range-label').textContent='WAITING FOR EVIDENCE';
+  $('event-count').textContent='0 EVENTS';$('ledger-count').textContent='NO RECORDS LOADED';$('filename').textContent='No logs loaded';
+  try{Plotly.purge('timeline')}catch{}
+  $('event-list').innerHTML='<div class="finding empty">Load one or more log files to see events appear here.</div>';
+  $('findings').innerHTML='<div class="finding empty">Potentially related events will be grouped here, with their evidence IDs attached.</div>';
+  $('ledger').innerHTML='<tr><td colspan="8" style="color:#8c928b;padding:22px">Your evidence ledger will appear here.</td></tr>';
+}
+
+$('load').addEventListener('click',()=>pick('add'));
+$('replace').addEventListener('click',()=>pick('replace'));
+$('dropzone').addEventListener('click',()=>pick('add'));
+$('file').addEventListener('change',e=>{const fl=e.target.files;if(fl&&fl.length)upload(fl,loadMode);});
+$('dropzone').addEventListener('dragover',e=>{e.preventDefault();$('dropzone').style.borderColor='var(--acid)';});
+$('dropzone').addEventListener('dragleave',()=>{$('dropzone').style.borderColor='#59634b';});
+$('dropzone').addEventListener('drop',e=>{e.preventDefault();$('dropzone').style.borderColor='#59634b';upload(e.dataTransfer.files,'add');});
+$('clear').addEventListener('click',async()=>{if(busy||!confirm('Clear all loaded logs and the current timeline?'))return;setBusy(true);try{const d=await api('/api/clear');hideToast();applyState(d);popup('All logs cleared');}catch(e){popup(e.message,true)}setBusy(false);});
+$('export').addEventListener('click',async()=>{if(!result)return;const r=await fetch('/api/report',{method:'POST',headers:{'X-CSRF-Token':CSRF}});if(!r.ok){popup('Could not export the brief',true);return;}const blob=await r.blob();const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='forensix-investigation-brief.md';a.click();URL.revokeObjectURL(a.href);});
+function render(d){$('m-total').textContent=d.total;$('m-findings').textContent=d.findings.length;$('m-linked').textContent=new Set(d.findings.flatMap(f=>f.events)).size;
+const mins=Math.max(0,Math.round((new Date(d.last)-new Date(d.first))/60000));$('m-window').textContent=mins<60?mins+' min':(mins/60).toFixed(1)+' hr';$('m-dates').textContent=d.first.split(' ')[0]+' → '+d.last.split(' ')[0];$('range-label').textContent='EVIDENCE WINDOW / '+d.first+' — '+d.last;$('event-count').textContent=d.total+' EVENTS'+(d.truncated?' (SHOWING FIRST '+d.events.length+')':'');$('ledger-count').textContent=d.total+' RECORDS';$('filename').textContent=d.files.length+' file'+(d.files.length===1?'':'s')+' loaded · '+d.total+' records';
+renderTimeline(d.events);renderEvents(d.events);renderFindings(d.findings);renderLedger(d.events);renderStory(d.story||[]);}
+function renderStory(st){$('story-panel').hidden=!st.length;$('story-count').textContent=st.length+' STEPS';$('story-list').innerHTML=st.map((x,i)=>`<div class="story-row" data-id="${esc(x.events[0])}"><div class="story-n">${String(i+1).padStart(2,'0')}</div><div class="story-t">${esc(x.time.split(' ')[1])}<br><span>${esc(x.time.split(' ')[0])}</span></div><div><span class="tactic ${x.level}">${esc(x.tactic)}</span><div class="story-x">${esc(x.text)}</div><div class="evidence-ids">${x.events.map(id=>`<span>${esc(id)}</span>`).join('')}</div></div></div>`).join('');document.querySelectorAll('.story-row').forEach(el=>el.addEventListener('click',()=>openById(el.dataset.id)));}
+function renderTimeline(events){const colors=events.map(e=>e.flagged?'#ff784f':/success/.test((e.action+' '+e.details).toLowerCase())?'#d8ff62':'#8cb8ff');
+const y=events.map((_,i)=>i%4);const trace={x:events.map(e=>e.timestamp),y,mode:'markers+text',type:'scatter',text:events.map(e=>e.event_id),textposition:'top center',textfont:{family:'DM Mono',size:9,color:'#aeb5aa'},marker:{size:11,color:colors,line:{width:1,color:'#101211'}},customdata:events.map(e=>[e.event_id,e.action,(e.why||e.details).slice(0,110),e.user,e.source_ip,e.host,e.event_type]),hovertemplate:'<b>%{customdata[0]}</b><br>%{x}<br>%{customdata[1]}<br>%{customdata[2]}<extra></extra>'};
+Plotly.newPlot('timeline',[trace],{paper_bgcolor:'#171a18',plot_bgcolor:'#171a18',margin:{l:22,r:20,t:26,b:48},showlegend:false,xaxis:{showgrid:true,gridcolor:'#2b302c',tickfont:{family:'DM Mono',size:9,color:'#969a9c'},linecolor:'#303532',tickformat:'%H:%M:%S'},yaxis:{visible:false,range:[-0.8,3.8]},font:{color:'#e5e8e1'},hoverlabel:{bgcolor:'#202520',bordercolor:'#4a5148',font:{color:'#f3f2ed'}},dragmode:'pan'}, {displayModeBar:false,responsive:true});
+$('timeline').on?.('plotly_click',data=>{const id=data.points[0].customdata[0];showEvent(events.find(e=>e.event_id===id));});}
+function renderEvents(events){$('event-list').innerHTML=events.map(e=>`<div class="event" data-id="${esc(e.event_id)}"><div class="event-time">${fmt(e.timestamp)}</div><div class="event-dot"></div><div><div class="event-title">${esc(pretty(e.action||e.event_type))}${e.tactic?` <span class="tactic">${esc(e.tactic)}</span>`:''}</div><div class="event-desc">${esc(e.why||e.details||e.event_type||'No details supplied')}${e.why?'':' · '+esc(e.user||'Unknown account')}</div></div><div class="event-id">${esc(e.event_id)}</div></div>`).join('');document.querySelectorAll('.event').forEach(el=>el.addEventListener('click',()=>showEvent(events.find(e=>e.event_id===el.dataset.id))));}
+function renderFindings(fs){if(!fs.length){$('findings').innerHTML='<div class="finding empty">No patterns matched the current rules. That does not guarantee the activity is safe. Try reviewing the source records or adding more context.</div>';return;}
+$('findings').innerHTML=fs.map((f,i)=>`<div class="finding" data-i="${i}"><div class="finding-top"><span class="badge ${f.level}">${f.level.toUpperCase()}</span><span class="finding-title">${esc(f.title)}</span></div><p>${esc(f.plain)}</p><div class="evidence-ids">${f.events.map(id=>`<span>${esc(id)}</span>`).join('')}</div></div>`).join('');document.querySelectorAll('.finding').forEach(el=>el.addEventListener('click',()=>showFinding(fs[+el.dataset.i])));}
+function renderLedger(events){$('ledger').innerHTML=events.map(e=>`<tr><td class="mono">${esc(e.timestamp)}</td><td class="mono">${esc(e.event_id)}</td><td>${esc(e.event_type)}</td><td>${esc(e.user)}</td><td class="mono">${esc(e.source_ip)}</td><td>${esc(e.action||e.details)}</td><td>${esc(e.host)}</td><td class="mono">${esc(e.source_file)}</td></tr>`).join('');}
+function showEvent(e){if(!e)return;$('drawer-title').textContent=e.event_id+' / '+pretty(e.action||e.event_type);$('drawer-body').innerHTML=`<p>This is the normalized view of one source record. Use it to verify what the log actually says.</p>${[['Timestamp',e.timestamp],['Event type',e.event_type],['Account',e.user],['Source IP',e.source_ip],['Host',e.host],['Activity',e.action],['Why it was flagged',e.why],['Tactic',e.tactic],['Details',e.details],['Source file',e.source_file]].map(([k,v])=>`<p><span class="mono">${esc(k.toUpperCase())}</span><br>${esc(v||'Not provided')}</p>`).join('')}${rawBlock(e.raw)}`;$('overlay').style.display='flex';}
+function showFinding(f){$('drawer-title').textContent=f.title;$('drawer-body').innerHTML=`<span class="badge">${f.level.toUpperCase()} SIGNAL</span><p>${esc(f.plain)}</p><p><span class="mono">WHY IT MATTERS</span><br>${esc(f.why)}</p><p><span class="mono">SUPPORTING EVENT IDS</span><br>${f.events.map(id=>`<button class="btn" style="margin:5px 5px 0 0" onclick="openById('${esc(id)}')">${esc(id)} ↗</button>`).join('')}</p><p style="color:#d8ff62;font-size:11px">Analyst note: this is a lead for review, not a confirmed incident verdict.</p>`;$('overlay').style.display='flex';}
+function rawBlock(r){try{const o=JSON.parse(r||'{}');const rows=Object.entries(o).map(([k,v])=>`${esc(k)}: ${esc(v)}`).join('\n');return rows?`<p><span class="mono">ORIGINAL FIELDS</span></p><pre style="white-space:pre-wrap;word-break:break-word;background:#101211;border:1px solid var(--line);padding:12px;font:11px var(--mono);color:#b5bbb3;margin:0">${rows}</pre>`:''}catch{return ''}}
+function openById(id){const e=result?.events.find(x=>x.event_id===id);showEvent(e);}
+$('close').addEventListener('click',()=>$('overlay').style.display='none');$('overlay').addEventListener('click',e=>{if(e.target===$('overlay'))$('overlay').style.display='none';});
+function pretty(s){return (s||'Event').replaceAll('_',' ').replace(/\b\w/g,c=>c.toUpperCase())}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+fetch('/api/state').then(r=>r.status===401?(location.href='/login'):r.json()).then(d=>{if(d)applyState(d)}).catch(()=>{});
+</script>
+</body></html>

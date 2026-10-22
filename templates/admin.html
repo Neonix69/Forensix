@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin Panel | FORENSIX AI</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='auth.css') }}">
+</head>
+<body class="admin-page">
+<div class="admin-shell admin-minimal">
+  <header class="admin-top">
+    <a class="brand admin-brand" href="{{ url_for('admin') }}"><div class="sigil"><span>F</span></div><div>FORENSIX <span class="admin-brand-label">/ ADMIN</span></div></a>
+    <div class="admin-top-right">
+      <span class="admin-signed-in"><i></i> ADMIN SESSION · {{ me['username'] }}</span>
+      <form method="post" action="{{ url_for('logout') }}"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><button class="btn" type="submit">Sign out</button></form>
+    </div>
+  </header>
+
+  <main>
+    <section class="admin-heading-minimal">
+      <div><div class="eyebrow">ACCESS MANAGEMENT</div><h1>Admin panel</h1><p>Create accounts, manage permissions, and reset passwords.</p></div>
+      <a class="btn admin-return" href="{{ url_for('index') }}">← Workspace</a>
+    </section>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, m in messages %}<div class="msg {{ 'error' if cat=='error' else '' }} admin-flash">{{ m }}</div>{% endfor %}
+    {% endwith %}
+
+    <section class="admin-mini-stats">
+      <div><span>Accounts</span><strong>{{ users|length }}</strong></div>
+      <div><span>Administrators</span><strong>{{ users|selectattr('is_admin')|list|length }}</strong></div>
+      <div><span>Analysts</span><strong>{{ users|rejectattr('is_admin')|list|length }}</strong></div>
+      <div><span>Public registration</span><strong class="status-active">Disabled</strong></div>
+    </section>
+
+    <section class="admin-compact-section">
+      <div class="admin-compact-title"><div><span class="section-number">01</span><h2>Create account</h2></div><p>Accounts are issued by an administrator only.</p></div>
+      <form class="panel admin-create-compact" method="post" action="{{ url_for('admin_create_user') }}" autocomplete="off">
+        <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+        <div><label for="nu">Username</label><input id="nu" name="username" required minlength="3" maxlength="32" pattern="[A-Za-z0-9_.\-]+" autocomplete="off" placeholder="analyst_01"></div>
+        <div><label for="np">Temporary password</label><input id="np" name="password" type="password" required minlength="8" autocomplete="new-password" placeholder="At least 8 characters"></div>
+        <div><label for="nr">Role</label><select id="nr" name="role"><option value="analyst">Analyst</option><option value="admin">Administrator</option></select></div>
+        <button class="btn primary" type="submit">Create account +</button>
+      </form>
+    </section>
+
+    <section class="admin-compact-section">
+      <div class="admin-compact-title"><div><span class="section-number">02</span><h2>Accounts</h2><span class="count-chip">{{ users|length }}</span></div><p>Reset credentials or remove access.</p></div>
+      <div class="panel admin-directory">
+        <div class="tablewrap"><table>
+          <thead><tr><th>Account</th><th>Role</th><th>Created (UTC)</th><th>Reset password</th><th></th></tr></thead>
+          <tbody>{% for u in users %}
+            <tr>
+              <td><div class="account-name">{{ u['username'] }}{% if u['id']==me['id'] %}<span class="tag">YOU</span>{% endif %}</div><small class="account-id">ID / {{ '%04d'|format(u['id']) }}</small></td>
+              <td><span class="role-badge {{ 'admin' if u['is_admin'] else '' }}"><span></span>{{ 'Admin' if u['is_admin'] else 'Analyst' }}</span></td>
+              <td class="created-date">{{ u['created_at'][:16].replace('T',' ') }}</td>
+              <td><form class="reset-form" method="post" action="{{ url_for('admin_reset_password', uid=u['id']) }}"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><input name="password" type="password" placeholder="New password" minlength="8" required autocomplete="new-password" aria-label="New password for {{ u['username'] }}"><button class="btn" type="submit">Reset</button></form></td>
+              <td>{% if u['id']!=me['id'] %}<form method="post" action="{{ url_for('admin_delete_user', uid=u['id']) }}" onsubmit="return confirm('Remove account {{ u['username']|e }}?')"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><button class="btn danger" type="submit">Remove</button></form>{% else %}<span class="self-account">Current user</span>{% endif %}</td>
+            </tr>
+          {% endfor %}</tbody>
+        </table></div>
+      </div>
+    </section>
+    <footer class="admin-footer"><span>FORENSIX AI · ADMINISTRATION</span><span>Restricted account management</span></footer>
+  </main>
+</div>
+</body>
+</html>
